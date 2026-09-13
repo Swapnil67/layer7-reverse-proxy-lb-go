@@ -32,8 +32,10 @@ func (bp *BufferPool) Get() *[]byte {
 
 // * Put cleans and returns a byte slice pointer back to the pool for reuse.
 func (bp *BufferPool) Put(b *[]byte) {
+	// * 1. Validate the buffer first
 	if b == nil || len(*b) != bp.bufferSize {
-		return
+		return // * Reject invalid buffers
 	}
+	// * 2. Pass the validated buffer to Go's standard library pool
 	bp.pool.Put(b)
 }

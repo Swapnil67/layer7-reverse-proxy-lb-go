@@ -1,3 +1,37 @@
+
+---
+
+### 🔄 Request Lifecycle & Communication Diagram
+
+```text
+  [ CLIENT ]            [ PROXY HANDLER ]             [ BALANCER ]               [ SERVER POOL ]            [ BACKEND ]
+      │                        │                           │                           │                         │
+  1.  │─── HTTP GET /api ─────►│                           │                           │                         │
+      │                        │                           │                           │                         │
+  2.  │                        │──── Next(req) ───────────►│                           │                         │
+      │                        │                           │                           │                         │
+  3.  │                        │                           │──── GetBackends() ───────►│                         │
+      │                        │                           │◄─── []*Backend snapshot ──│                         │
+      │                        │                           │                           │                         │
+  4.  │                        │                           │─── Evaluates Healthy ──────────────────────────────►│
+      │                        │                           │    b.IsAlive() == true?                             │
+      │                        │                           │                                                     │
+  5.  │                        │◄── Returns *Backend ──────│                                                     │
+      │                        │                                                                                 │
+  6.  │                        │────────────────────────────────────────────────────────────────────────────────►│
+      │                        │    IncrActiveConns() (+1)                                                       │
+      │                        │                                                                                 │
+  7.  │                        │───────────────────── Forward Request & Stream Response ────────────────────────►│
+      │                        │◄──────────────────── HTTP 200 OK Response ──────────────────────────────────────│
+      │                        │                                                                                 │
+  8.  │                        │────────────────────────────────────────────────────────────────────────────────►│
+      │                        │    DecrActiveConns() (-1) via defer                                             │
+  9.  │◄── HTTP 200 OK ────────│                                                                                 │
+```
+
+---
+
+
 Complete architectural diagram in ASCII text. It details the **Data Plane** (how incoming client HTTP requests flow through the system) and the **Control Plane** (background health checkers, telemetry, and rate limiting).
 
 ```text
