@@ -1,6 +1,8 @@
 package proxy
 
-import "sync"
+import (
+	"sync"
+)
 
 // * A thread-safe byte buffer pool to recycle fixed-size memory slices during response body streaming.
 
@@ -17,6 +19,8 @@ func NewBufferPool(bufferSize int) *BufferPool {
 		bufferSize: bufferSize,
 		pool: sync.Pool{
 			New: func() any {
+				// * This creates a distinct, independent 32KB slice in memory
+				// * every time the pool runs out of cached buffers.
 				// * Allocate a fixed-size byte slice pointer on heap
 				b := make([]byte, bufferSize)
 				return &b
@@ -34,6 +38,7 @@ func (bp *BufferPool) Get() *[]byte {
 func (bp *BufferPool) Put(b *[]byte) {
 	// * 1. Validate the buffer first
 	if b == nil || len(*b) != bp.bufferSize {
+		// fmt.Println("Invalid Buffer")
 		return // * Reject invalid buffers
 	}
 	// * 2. Pass the validated buffer to Go's standard library pool

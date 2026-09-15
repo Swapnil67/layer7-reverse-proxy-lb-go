@@ -1,5 +1,6 @@
 package balancer
 
+// ! Strategy Pattern
 // ! Round Robin Load Balancer
 
 import (
@@ -33,7 +34,19 @@ func NewRoundRobinBalancer(pool *core.ServerPool) *RoundRobinBalancer {
  */
 func (rr *RoundRobinBalancer) Next(r *http.Request) (*core.Backend, error) {
 	backends := rr.pool.GetBackends()
-	n := uint64(len(backends))
+	if len(backends) == 0 {
+		return nil, core.ErrNoAliveBackends
+	}
+
+	// * 1. Filter healthy backends to ensure equal traffic distribution among healthy nodes
+	alive := make([]*core.Backend, 0, len(backends))
+	for _, b := range backends {
+		if b.IsAlive() {
+			alive = append(alive, b)
+		}
+	}
+
+	n := uint64(len(alive))
 	if n == 0 {
 		return nil, core.ErrNoAliveBackends
 	}
@@ -43,18 +56,7 @@ func (rr *RoundRobinBalancer) Next(r *http.Request) (*core.Backend, error) {
 	// * unique number back to Go's 0-based array indexing.
 	// * Atomically increment the index counter to get a unique tick number across goroutines
 	nextIdx := atomic.AddUint64(&rr.index, 1) - 1
-
-	// * Traversal loop: Try every backend starting from (nextIdx % n) until a healthy one is found
-	for i := uint64(0); i < n; i++ {
-		idx := (nextIdx + i) % n
-		b := backends[idx]
-		if b.IsAlive() {
-			return b, nil
-		}
-	}
-
-	// * All backends in the pool are currently marked unhealthy
-	return nil, core.ErrNoAliveBackends
+	return alive[nextIdx%n], nil
 }
 
 // * UpdateHealth updates the health status of a backend matching the target URL.

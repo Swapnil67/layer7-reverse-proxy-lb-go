@@ -53,7 +53,7 @@ func NewProxyHandler(lb core.LoadBalancer, transport *http.Transport, pool *Buff
 		}
 	}
 
-	if pool != nil {
+	if pool == nil {
 		pool = NewBufferPool(32 * 1024) // * Default 32 KB byte buffer
 	}
 
@@ -69,6 +69,7 @@ func NewProxyHandler(lb core.LoadBalancer, transport *http.Transport, pool *Buff
 func (ph *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// * 1. Fetch a healthy backend from LoadBalancer strategy
 	backend, err := ph.balancer.Next(r)
+	// fmt.Println("Backend URL: ", backend.GetURL().String())
 	if err != nil {
 		slog.Error("Failed to resolve healthy backend", "error", err)
 		http.Error(w, "Service Unavailable: No healthy upstreams", http.StatusServiceUnavailable)
@@ -109,6 +110,7 @@ func (ph *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// * io.CopyBuffer uses EXACT 32KB memory chunk to move bytes from backend -> client
 	_, err = io.CopyBuffer(w, resp.Body, *buf)
 	if err != nil && err != io.EOF {
+		// * If the client disconnected midway, io.CopyBuffer will catch it and exit here.
 		slog.Warn("Error streaming response body to client", "error", err)
 	}
 
